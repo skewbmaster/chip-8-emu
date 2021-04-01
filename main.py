@@ -1,12 +1,14 @@
 from sys import exit as sysexit
 from os import environ, getcwd
 from threading import Thread
+from tkinter import Tk, filedialog
 import pygame
 import chip8
 
 CHIP8 = chip8.CPU()
 
 pygame.init()
+root = Tk(); root.withdraw()
 environ['SDL_VIDEO_CENTERED'] = '1'
 width, height = 1280, 720
 scaleMult = 12
@@ -30,7 +32,7 @@ keyReference = [pygame.K_x,
                 pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_q, pygame.K_w, pygame.K_e, pygame.K_a, pygame.K_s, pygame.K_d, pygame.K_z, pygame.K_c, pygame.K_4, pygame.K_r, pygame.K_f, pygame.K_v]
 
 
-UIbuttonsReference = [( pygame.Rect(50,450,120,50), (mfont.render("Reset ROM", True, white, black), (55, 465)) )]
+UIbuttonsReference = [( pygame.Rect(50,450,120,50), (mfont.render("Open ROM", True, white, black), (55, 465)) ), ( pygame.Rect(190,450,120,50), (mfont.render("Reset ROM", True, white, black), (195, 465)) )]
 keyButtonsReference = [( pygame.Rect(50,550,25,25), "1" ), ( pygame.Rect(80,550,25,25), "2" ), ( pygame.Rect(110,550,25,25), "3" ), ( pygame.Rect(140,550,25,25), "C" ), 
                        ( pygame.Rect(50,580,25,25), "4" ), ( pygame.Rect(80,580,25,25), "5" ), ( pygame.Rect(110,580,25,25), "6" ), ( pygame.Rect(140,580,25,25), "D" ), 
                        ( pygame.Rect(50,610,25,25), "7" ), ( pygame.Rect(80,610,25,25), "8" ), ( pygame.Rect(110,610,25,25), "9" ), ( pygame.Rect(140,610,25,25), "E" ), 
@@ -45,12 +47,17 @@ def drawDebug():
     s.blit(mfont.render(( "I: " + "x" + hex(CHIP8.I)[2::].upper() ), True, white, bgcolor), (10,40))
 
     for i in range(16):
-        s.blit(mfont.render( ("V" + hex(i)[-1].upper() + ": " + "x" + hex(CHIP8.V[i])[2::].upper() ), True, white, bgcolor), (10, 80 + i*20))
+        s.blit(mfont.render( ("V" + hex(i)[-1].upper() + ": " + "x" + hex(CHIP8.V[i])[2::].upper() ), True, white, bgcolor), (10 + 120*(i//8), 80 + (i % 8)*20))
+        
+    
 
     return s
 
 
 def drawHandleUI():
+    if instructionAdvance:
+        screen.blit(mfont.render("Paused", True, (240, 15, 15), bgcolor), (50, 20))
+
     for b in UIbuttonsReference:
         pygame.draw.rect(screen, black, b[0])
 
@@ -64,18 +71,25 @@ def drawHandleUI():
 
         screen.blit(mfont.render(mb[1], True, white, tempbgcol), (mb[0].x + 6, mb[0].y + 1))
 
+instructionAdvance = False
+resetROM = False
+
 def runEmulator():
+    global resetROM, instructionAdvance
     while True:
         if not instructionAdvance:
             CHIP8.emulationCycle()
 
+        if resetROM:
+            CHIP8.reInit()
+            CHIP8.loadGame(ROMname)
+            resetROM = False
+
         emulatorClock.tick(300)
 
 
-ROMname = "TETRIS"
-CHIP8.loadGame(getcwd() + "\\roms\\" + ROMname)
-
-instructionAdvance = True
+ROMname = getcwd() + "\\roms\\" + "TETRIS"
+CHIP8.loadGame(ROMname)
 
 emulationThread = Thread(target=runEmulator)
 emulationThread.start()
@@ -99,8 +113,11 @@ while True:
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if UIbuttonsReference[0][0].collidepoint(mousex, mousey):
-                CHIP8.reInit()
-                CHIP8.loadGame(getcwd() + "\\roms\\" + ROMname)
+                ROMname = filedialog.askopenfile().name
+                resetROM = True
+
+            elif UIbuttonsReference[1][0].collidepoint(mousex, mousey):
+                resetROM = True
     
 
     for i in range(16):
